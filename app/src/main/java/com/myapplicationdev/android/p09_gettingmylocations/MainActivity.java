@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.PermissionChecker;
+import androidx.fragment.app.FragmentManager;
 
 import android.Manifest;
 import android.content.Intent;
@@ -20,6 +21,14 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
@@ -32,6 +41,10 @@ public class MainActivity extends AppCompatActivity {
     Button b1, b2, b3;
     FusedLocationProviderClient client;
     String folderLocation;
+    private GoogleMap map;
+    MarkerOptions north;
+    Location place;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onSuccess(Location location) {
                     String msg = "";
+                    place = location;
                     if (location != null) {
                         msg = "Last Known Location when this Activity Started:\n" +
                                 "Latitude: " + location.getLatitude() +
@@ -67,6 +81,38 @@ public class MainActivity extends AppCompatActivity {
                         msg = "No Location Found";
                     }
                     tv1.setText(msg);
+                    FragmentManager fm = getSupportFragmentManager();
+                    SupportMapFragment mapFragment = (SupportMapFragment)
+                            fm.findFragmentById(R.id.map);
+
+                    mapFragment.getMapAsync(new OnMapReadyCallback() {
+                        @Override
+                        public void onMapReady(GoogleMap googleMap) {
+                            map = googleMap;
+                            LatLng singapore = new LatLng(place.getLatitude(), place.getLongitude());
+                            map.moveCamera(CameraUpdateFactory.newLatLngZoom(singapore,
+                                    15));
+                            UiSettings ui = map.getUiSettings();
+                            ui.setCompassEnabled(true);
+                            ui.setZoomControlsEnabled(true);
+
+                            int permissionCheck = ContextCompat.checkSelfPermission(MainActivity.this,
+                                    android.Manifest.permission.ACCESS_FINE_LOCATION);
+
+                            if (permissionCheck == PermissionChecker.PERMISSION_GRANTED) {
+                                map.setMyLocationEnabled(true);
+                            } else {
+                                Log.e("GMap - Permission", "GPS access has not been granted");
+                                ActivityCompat.requestPermissions(MainActivity.this,
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 0);
+                            }
+
+                            north = new MarkerOptions()
+                                    .position(singapore)
+                                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                            map.addMarker(north);
+                        }
+                    });
                 }
             });
         }
@@ -90,27 +136,11 @@ public class MainActivity extends AppCompatActivity {
         b3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String folderLocation= Environment.getExternalStorageDirectory().getAbsolutePath() + "/P09Folder";
-                File targetFile = new File(folderLocation, "data.txt");
-                if (targetFile.exists()){
-                    String data ="";
-                    try {
-                        FileReader reader = new FileReader(targetFile);
-                        BufferedReader br= new BufferedReader(reader);
-                        String line = br.readLine();
-                        while (line != null) {
-                            data += line + "\n";
-                            line = br.readLine();
-                        }
-                        br.close();
-                        reader.close();
-                    } catch (Exception e) {
-                        Toast.makeText(MainActivity.this, "Failed to read!", Toast.LENGTH_LONG).show();e.printStackTrace();
-                    }
-                    Toast.makeText(MainActivity.this, data, Toast.LENGTH_LONG).show();
-                }
+                Intent i = new Intent(MainActivity.this, SecondActivity.class);
+                startActivity(i);
             }
         });
+
     }
     private boolean checkPermission() {
         int permissionCheck_Coarse = ContextCompat.checkSelfPermission(
